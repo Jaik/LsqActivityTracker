@@ -1,10 +1,14 @@
 package com.leadsquared.library;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLConnection;
+
+import javax.net.ssl.HttpsURLConnection;
 
 /**
  * Created by Jainendra Kumar on 4/5/2016.
@@ -12,33 +16,41 @@ import java.net.URLConnection;
 class HttpCall {
 
     static String post(String urlString, String data) {
-        String text = "";
-        BufferedReader reader = null;
+        URL url;
+        String response = "";
         try {
-            URL url = new URL(urlString);
-            URLConnection conn = url.openConnection();
+            url = new URL(urlString);
+
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setReadTimeout(15000);
+            conn.setConnectTimeout(15000);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoInput(true);
             conn.setDoOutput(true);
-            OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
-            wr.write(data);
-            wr.flush();
-            reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            StringBuilder sb = new StringBuilder();
-            String line;
 
-            while ((line = reader.readLine()) != null) {
-                sb.append(line).append("\n");
-            }
+            OutputStream os = conn.getOutputStream();
+            BufferedWriter writer = new BufferedWriter(
+                    new OutputStreamWriter(os, "UTF-8"));
+            writer.write(data);
 
-            text = sb.toString();
-        } catch (Exception ex) {
-            return null;
-        } finally {
-            try {
-                assert reader != null;
-                reader.close();
-            } catch (Exception ignored) {
+            writer.flush();
+            writer.close();
+            os.close();
+            int responseCode = conn.getResponseCode();
+
+            if (responseCode == HttpsURLConnection.HTTP_OK) {
+                String line;
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                while ((line = br.readLine()) != null) {
+                    response += line;
+                }
+            } else {
+                response = "";
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        return text;
+        return response;
     }
 }
